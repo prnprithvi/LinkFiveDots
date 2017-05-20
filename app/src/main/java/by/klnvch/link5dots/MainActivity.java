@@ -1,8 +1,11 @@
 package by.klnvch.link5dots;
 
+import android.annotation.SuppressLint;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
+import android.provider.Settings;
+import android.support.annotation.NonNull;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
@@ -13,13 +16,19 @@ import android.widget.TextView;
 import com.google.android.gms.analytics.GoogleAnalytics;
 import com.google.android.gms.analytics.HitBuilders;
 import com.google.android.gms.analytics.Tracker;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import by.klnvch.link5dots.settings.SettingsUtils;
 
 public class MainActivity extends AppCompatActivity {
 
     private GameView view;
-    private AlertDialog alertDialog = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,6 +71,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
         GoogleAnalytics.getInstance(this).reportActivityStart(this);
+        //
+        FirebaseAuth.getInstance().signInAnonymously();
     }
 
     @Override
@@ -115,43 +126,45 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showAlertDialog(final HighScore highScore) {
-        if (alertDialog == null || !alertDialog.isShowing()) {
-            //final long gameStatus = data.getLong(GAME_STATUS);
-            //final long numberOfMoves = data.getLong(NUMBER_OF_MOVES);
-            //final long timeElapsed = data.getLong(ELAPSED_TIME);
+        //final long gameStatus = data.getLong(GAME_STATUS);
+        //final long numberOfMoves = data.getLong(NUMBER_OF_MOVES);
+        //final long timeElapsed = data.getLong(ELAPSED_TIME);
 
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            if (highScore.getStatus() == HighScore.WON) {
-                builder.setTitle(R.string.end_win);
-            } else {
-                builder.setTitle(R.string.end_lose);
-            }
-            String str = getString(R.string.end_move, highScore.getScore(), highScore.getTime());
-            builder.setMessage(str);
-            builder.setPositiveButton(R.string.end_new_game, new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    newGame();
-                }
-            });
-            builder.setNeutralButton(R.string.end_publish, new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    publishScore(highScore);
-                }
-            });
-            builder.setNegativeButton(R.string.end_undo, new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    undoLastMove();
-                }
-            });
-            alertDialog = builder.create();
-            alertDialog.show();
+        final String title;
+        if (highScore.getStatus() == HighScore.WON) {
+            title = getString(R.string.end_win);
+        } else {
+            title = getString(R.string.end_lose);
         }
+        String str = getString(R.string.end_move, highScore.getScore(), highScore.getTime());
+
+        new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setMessage(str)
+                .setPositiveButton(R.string.end_new_game, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        newGame();
+                    }
+                })
+                .setNeutralButton(R.string.scores_title, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        moveToScores();
+                    }
+                })
+                .setNegativeButton(R.string.end_undo, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        undoLastMove();
+                    }
+                })
+                .show();
     }
 
     private void undoLastMove() {
+        HighScore highScore = view.getHighScore();
+        if (highScore != null) publishScore(highScore);
         view.undoLastMove(2);
         //
         Tracker tracker = ((App) getApplication()).getTracker();
@@ -162,6 +175,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void newGame() {
+        HighScore highScore = view.getHighScore();
+        if (highScore != null) publishScore(highScore);
         view.resetGame();
         //
         Tracker tracker = ((App) getApplication()).getTracker();
@@ -171,20 +186,38 @@ public class MainActivity extends AppCompatActivity {
                 .build());
     }
 
-    private void publishScore(HighScore highScore) {
-        Intent i = new Intent(MainActivity.this, ScoresActivity.class);
-        Bundle data = new Bundle();
-        data.putLong(HighScore.GAME_STATUS, highScore.getStatus());
-        data.putLong(HighScore.NUMBER_OF_MOVES, highScore.getScore());
-        data.putLong(HighScore.ELAPSED_TIME, highScore.getTime());
-        i.putExtras(data);
-        startActivity(i);
+    private void moveToScores() {
+        startActivity(new Intent(this, ScoresActivity.class));
         //
         Tracker tracker = ((App) getApplication()).getTracker();
         tracker.send(new HitBuilders.EventBuilder()
                 .setCategory("Main")
-                .setAction("Publish")
+                .setAction("Scores")
                 .build());
+    }
+
+    @SuppressLint("HardwareIds")
+    private void publishScore(@NonNull HighScore highScore) {
+        String userId;
+        FirebaseAuth mAuth = FirebaseAuth.getInstance();
+        if (mAuth.getCurrentUser() != null) {
+            userId = mAuth.getCurrentUser().getUid();
+            highScore.setUserId(userId);
+        }
+        highScore.setAndroidId(Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID));
+        highScore.setUserName(SettingsUtils.getUserName(this, null));
+
+        DatabaseReference mDatabase = FirebaseDatabase.getInstance().getReference();
+        String key = mDatabase.child("high_scores").push().getKey();
+        Map<String, Object> postValues = highScore.toMap();
+        Map<String, Object> childUpdates = new HashMap<>();
+        childUpdates.put("/high_scores/" + key, postValues);
+        mDatabase.updateChildren(childUpdates, new DatabaseReference.CompletionListener() {
+            @Override
+            public void onComplete(DatabaseError databaseError, DatabaseReference databaseReference) {
+                //Log.d(TAG, databaseError.getMessage());
+            }
+        });
     }
 
     private void searchLastMove() {

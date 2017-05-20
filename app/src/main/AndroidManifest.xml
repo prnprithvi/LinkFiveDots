@@ -106,8 +106,7 @@
         <activity
             android:name=".ScoresActivity"
             android:configChanges="locale"
-            android:label="@string/scores_title"
-            android:screenOrientation="sensorLandscape">
+            android:label="@string/scores_title">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value=".MainMenuActivity" />

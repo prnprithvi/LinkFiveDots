@@ -1,8 +1,15 @@
 package by.klnvch.link5dots;
 
+import com.google.firebase.database.Exclude;
+import com.google.firebase.database.IgnoreExtraProperties;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.HashMap;
+import java.util.Map;
+
+@IgnoreExtraProperties
 public class HighScore {
 
     public static final long WON = 1;
@@ -12,19 +19,30 @@ public class HighScore {
     public static final String NUMBER_OF_MOVES = "NUMBER_OF_MOVES";
     public static final String ELAPSED_TIME = "ELAPSED_TIME";
 
-    private static final String DEVICE_ID = "id";
+    private static final String USER_ID = "userId";
+    private static final String ANDROID_ID = "androidId";
     private static final String USER_NAME = "username";
     private static final String SCORE = "score";
-
-    private String id;
+    private static final String TIMESTAMP = "timestamp";
+    private static final long L_1 = 1;
+    private static final long L_2000 = 2000;
+    private static final long L_4294 = 4294;
+    private static final long L_967295 = 967295;
+    private static final long L_1000000 = 1000000;
+    private String userId;
+    private String androidId;
     private String username;
     private long score;
     private long time;
     private long status;
 
-    public HighScore(String id, String username, long score, long time, long status) {
+    public HighScore() {
 
-        this.id = id;
+    }
+
+    public HighScore(String androidId, String username, long score, long time, long status) {
+
+        this.androidId = androidId;
         this.username = username;
         this.score = score;
         this.time = time;
@@ -43,28 +61,33 @@ public class HighScore {
         decode(score);
     }
 
-    public HighScore(JSONObject jsonObject) throws JSONException {
-
-        if (jsonObject.has(DEVICE_ID)) {
-            id = jsonObject.getString(DEVICE_ID);
-        }
-
-        if (jsonObject.has(USER_NAME)) {
-            username = jsonObject.getString(USER_NAME);
-        }
-
-        if (jsonObject.has(SCORE)) {
-            long score = jsonObject.getLong(SCORE);
-            decode(score);
-        }
+    public String getUserId() {
+        return userId;
     }
 
-    public String getId() {
-        return id;
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
+    public String getAndroidId() {
+        return androidId;
+    }
+
+    public void setAndroidId(String androidId) {
+        this.androidId = androidId;
     }
 
     public String getUserName() {
         return username;
+    }
+    /*
+	public int compareTo(HighScore another) {
+		return (int)(this.code() - another.code());
+	}
+	*/
+
+    public void setUserName(String userName) {
+        this.username = userName;
     }
 
     /*
@@ -91,22 +114,11 @@ public class HighScore {
 
     public JSONObject toJSONObject() throws JSONException {
         JSONObject result = new JSONObject();
-        result.put(DEVICE_ID, id);
+        result.put(ANDROID_ID, androidId);
         result.put(USER_NAME, username);
         result.put(SCORE, code());
         return result;
     }
-	/*
-	public int compareTo(HighScore another) {
-		return (int)(this.code() - another.code());
-	}
-	*/
-
-    private static final long L_1 = 1;
-    private static final long L_2000 = 2000;
-    private static final long L_4294 = 4294;
-    private static final long L_967295 = 967295;
-    private static final long L_1000000 = 1000000;
 
     //
     //this function is needed for JSON objects
@@ -137,7 +149,7 @@ public class HighScore {
     //Initialize: score
     //            time
     //            status
-    private void decode(long score) {
+    public void decode(long score) {
 
         time = score % L_1000000;
 
@@ -149,5 +161,17 @@ public class HighScore {
             status = WON;
             this.score = temp;
         }
+    }
+
+    @Exclude
+    public Map<String, Object> toMap() {
+        HashMap<String, Object> result = new HashMap<>();
+        result.put(USER_ID, userId);
+        result.put(ANDROID_ID, androidId);
+        result.put(USER_NAME, username);
+        result.put(SCORE, code());
+        result.put(TIMESTAMP, System.currentTimeMillis());
+
+        return result;
     }
 }

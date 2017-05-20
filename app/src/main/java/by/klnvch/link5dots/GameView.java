@@ -332,6 +332,10 @@ public class GameView extends View {
         }
     }
 
+    public HighScore getHighScore() {
+        return mGame.getCurrentScore();
+    }
+
     private void onScale(float scaleFactor, float px, float py) {
 
         float newScale = scale * scaleFactor;

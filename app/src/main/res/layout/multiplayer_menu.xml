@@ -48,7 +48,6 @@
         android:textStyle="bold" />
 
     <Button
-        android:visibility="invisible"
         android:id="@+id/multi_player_online"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
@@ -56,9 +55,10 @@
         android:drawableLeft="@drawable/ic_public_48dp"
         android:drawableStart="@drawable/ic_public_48dp"
         android:onClick="onClick"
-        android:text="Online"
+        android:text="@string/menu_online_game"
         android:textColor="@color/black"
         android:textSize="@dimen/btn_text_size"
-        android:textStyle="bold" />
+        android:textStyle="bold"
+        android:visibility="visible" />
 
 </LinearLayout>
